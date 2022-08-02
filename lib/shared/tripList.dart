@@ -10,12 +10,14 @@ class TripList extends StatefulWidget {
 
 class _TripListState extends State<TripList> {
   List<Widget> _tripTiles = [];
-  final GlobalKey _listKey = GlobalKey();
+  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
 
   @override
   void initState() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _addTrips();
+    });
     super.initState();
-    _addTrips();
   }
 
   void _addTrips() {
@@ -28,8 +30,15 @@ class _TripListState extends State<TripList> {
       Trip(title: 'Space Blast', price: '600', nights: '4', img: 'space.png'),
     ];
 
+    // For Slowed List tiles [Stagger List Animation]
+    Future future = Future(() {});
     _trips.forEach((Trip trip) {
-      _tripTiles.add(_buildTile(trip));
+      future = future.then((_) {
+        return Future.delayed(Duration(milliseconds: 100), () {
+          _tripTiles.add(_buildTile(trip));
+          _listKey.currentState.insertItem(_tripTiles.length - 1);
+        });
+      });
     });
   }
 
@@ -54,22 +63,31 @@ class _TripListState extends State<TripList> {
       ),
       leading: ClipRRect(
         borderRadius: BorderRadius.circular(8.0),
-        child: Image.asset(
-          'images/${trip.img}',
-          height: 50.0,
+        child: Hero(
+          tag: 'location-img-${trip.img}',
+          child: Image.asset(
+            'images/${trip.img}',
+            height: 50.0,
+          ),
         ),
       ),
       trailing: Text('\$${trip.price}'),
     );
   }
 
+  Tween<Offset> _offset = Tween(begin: Offset(1, 0), end: Offset(0, 0));
+
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-        key: _listKey,
-        itemCount: _tripTiles.length,
-        itemBuilder: (context, index) {
-          return _tripTiles[index];
-        });
+    return AnimatedList(
+      key: _listKey,
+      initialItemCount: _tripTiles.length,
+      itemBuilder: (context, index, animation) {
+        return SlideTransition(
+          child: _tripTiles[index],
+          position: animation.drive(_offset),
+        );
+      },
+    );
   }
 }
